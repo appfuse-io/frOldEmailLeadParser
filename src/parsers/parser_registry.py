@@ -31,13 +31,12 @@ class ParserRegistry:
     def _register_builtin_parsers(self):
         """Register all built-in parser implementations."""
         try:
-            # Import and register each parser
+            # Import and register each parser (only existing ones)
             parser_modules = [
                 ('rightbiz', 'src.parsers.implementations.rightbiz_parser', 'RightbizParser'),
                 ('daltons', 'src.parsers.implementations.daltons_parser', 'DaltonsParser'),
-                ('homecare', 'src.parsers.implementations.homecare_parser', 'HomecareParser'),
                 ('b4s', 'src.parsers.implementations.b4s_parser', 'B4sParser'),
-                ('nda', 'src.parsers.implementations.nda_parser', 'NdaParser'),
+                # Note: homecare_parser and nda_parser don't exist yet
             ]
             
             for lead_source, module_path, class_name in parser_modules:

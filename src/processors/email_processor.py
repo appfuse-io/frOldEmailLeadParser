@@ -133,11 +133,43 @@ class EmailProcessor:
                 # Parse email into lead data
                 lead_data = parser.parse(parsed_email)
                 
-                # Validate and normalize the parsed data
-                validated_data = validate_and_normalize_lead(lead_data.dict())
+                # Flatten the lead data structure for validation
+                # Convert nested ContactInfo to flat structure
+                flattened_data = {
+                    'lead_source': lead_data.lead_source,
+                    'resale_reference': lead_data.resale_reference,
+                    'first_name': lead_data.contact_info.first_name,
+                    'last_name': lead_data.contact_info.last_name,
+                    'email': lead_data.contact_info.email,
+                    'telephone': lead_data.contact_info.telephone,
+                    'mobile': lead_data.contact_info.mobile,
+                    'receipt_date': lead_data.receipt_date,
+                    'raw_email_content': lead_data.raw_email_content,
+                    'metadata': lead_data.metadata
+                }
                 
-                # Create validated lead data object
-                validated_lead_data = LeadData(**validated_data)
+                # Validate and normalize the flattened data
+                validated_data = validate_and_normalize_lead(flattened_data)
+                
+                # Reconstruct the nested structure for LeadData
+                from ..models.lead_data import ContactInfo
+                contact_info = ContactInfo(
+                    first_name=validated_data['first_name'],
+                    last_name=validated_data['last_name'],
+                    email=validated_data['email'],
+                    telephone=validated_data.get('telephone'),
+                    mobile=validated_data.get('mobile')
+                )
+                
+                # Create validated lead data object with nested structure
+                validated_lead_data = LeadData(
+                    lead_source=validated_data['lead_source'],
+                    resale_reference=validated_data.get('resale_reference'),
+                    contact_info=contact_info,
+                    receipt_date=validated_data['receipt_date'],
+                    raw_email_content=validated_data.get('raw_email_content'),
+                    metadata=validated_data.get('metadata', {})
+                )
                 
                 # Enrich the lead data
                 enriched_lead_data = self.lead_enricher.enrich_lead(validated_lead_data)
@@ -238,6 +270,21 @@ class EmailProcessor:
             # Parse email using mailparser
             mail = mailparser.parse_from_bytes(email_bytes)
             
+            # Debug: Log what mailparser extracted
+            self.logger.debug(
+                "Mailparser extraction results",
+                email_key=email_key,
+                subject=repr(mail.subject),
+                sender=repr(mail.from_),
+                recipient=repr(mail.to),
+                date=repr(mail.date),
+                text_plain_type=type(mail.text_plain).__name__,
+                text_plain_value=repr(mail.text_plain),
+                text_html_type=type(mail.text_html).__name__,
+                text_html_value=repr(mail.text_html)[:200] if mail.text_html else None,
+                has_attachments=bool(mail.attachments)
+            )
+            
             # Extract text content
             text_content = []
             if mail.text_plain:
@@ -246,14 +293,25 @@ class EmailProcessor:
                 else:
                     text_content.append(mail.text_plain)
             
-            # Create parsed email object
+            # Helper function to safely convert to string
+            def safe_str(value):
+                if value is None:
+                    return ""
+                elif isinstance(value, str):
+                    return value
+                elif isinstance(value, list):
+                    return ", ".join(str(item) for item in value if item)
+                else:
+                    return str(value)
+            
+            # Create parsed email object with safe type conversion
             parsed_email = ParsedEmail(
-                subject=mail.subject,
-                sender=mail.from_,
-                recipient=mail.to,
+                subject=safe_str(mail.subject),
+                sender=safe_str(mail.from_),
+                recipient=safe_str(mail.to),
                 date=mail.date,
                 text_content=text_content,
-                html_content=mail.text_html,
+                html_content=safe_str(mail.text_html),
                 attachments=mail.attachments or []
             )
             

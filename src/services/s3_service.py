@@ -37,12 +37,19 @@ class S3Service:
                 'region_name': self.config.region_name
             }
             
-            # Add credentials if provided
-            if self.config.access_key_id and self.config.secret_access_key:
-                client_config.update({
-                    'aws_access_key_id': self.config.access_key_id,
-                    'aws_secret_access_key': self.config.secret_access_key
-                })
+            # Debug logging for credentials
+            self.logger.debug(
+                "Credential check",
+                access_key_exists=bool(self.config.access_key_id),
+                access_key_value=f"'{self.config.access_key_id}'" if self.config.access_key_id else "None",
+                secret_key_exists=bool(self.config.secret_access_key),
+                secret_key_value=f"'{self.config.secret_access_key[:10]}...'" if self.config.secret_access_key else "None"
+            )
+            
+            # Force use of IAM role by never using explicit credentials
+            # AWS Lambda automatically sets AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY
+            # but these can be invalid/expired temporary credentials
+            self.logger.info("Forcing use of IAM role for AWS credentials (ignoring any environment credentials)")
             
             self._client = boto3.client('s3', **client_config)
             

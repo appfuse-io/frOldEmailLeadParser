@@ -92,11 +92,18 @@ def load_config() -> AppConfig:
         ValueError: If required configuration is missing or invalid
     """
     try:
+        # Debug environment variables
+        access_key_env = os.getenv('AWS_ACCESS_KEY_ID')
+        secret_key_env = os.getenv('AWS_SECRET_ACCESS_KEY')
+        
+        print(f"DEBUG: AWS_ACCESS_KEY_ID env var: {repr(access_key_env)}")
+        print(f"DEBUG: AWS_SECRET_ACCESS_KEY env var: {repr(secret_key_env)}")
+        
         # AWS Configuration
         aws_config = AWSConfig(
             region_name=os.getenv('AWS_REGION', 'eu-west-2'),
-            access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+            access_key_id=access_key_env,
+            secret_access_key=secret_key_env,
             s3_bucket=os.getenv('AWS_S3_BUCKET', ''),
             sqs_queue_url=os.getenv('SQS_QUEUE_URL', '')
         )

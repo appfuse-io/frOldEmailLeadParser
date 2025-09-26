@@ -131,7 +131,7 @@ class JSONFormatter(logging.Formatter):
             'level': record.levelname,
             'logger': record.name,
             'message': record.getMessage(),
-            'module': record.module,
+            'log_module': record.module,  # Renamed to avoid conflict
             'function': record.funcName,
             'line': record.lineno
         }
@@ -139,9 +139,9 @@ class JSONFormatter(logging.Formatter):
         # Add extra data if present
         if hasattr(record, '__dict__'):
             for key, value in record.__dict__.items():
-                if key not in ['name', 'msg', 'args', 'levelname', 'levelno', 
-                              'pathname', 'filename', 'module', 'lineno', 
-                              'funcName', 'created', 'msecs', 'relativeCreated', 
+                if key not in ['name', 'msg', 'args', 'levelname', 'levelno',
+                              'pathname', 'filename', 'module', 'lineno',
+                              'funcName', 'created', 'msecs', 'relativeCreated',
                               'thread', 'threadName', 'processName', 'process',
                               'getMessage', 'exc_info', 'exc_text', 'stack_info']:
                     log_data[key] = value
