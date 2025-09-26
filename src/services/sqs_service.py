@@ -26,12 +26,16 @@ class SQSService:
     def __init__(self, config=None):
         app_config = get_config()
         self.config = config or app_config.aws
+        self.parsing_config = app_config.parsing
         self.metrics = get_email_parser_metrics()
         self.logger = get_logger(__name__)
         
-        # Initialize SQS client
+        # Initialize SQS client (only if not in dry-run mode)
         self._client = None
-        self._initialize_client()
+        if not self.parsing_config.dry_run_mode:
+            self._initialize_client()
+        else:
+            self.logger.info("SQS service initialized in DRY-RUN mode - messages will be logged only")
     
     def _initialize_client(self):
         """Initialize SQS client with configuration."""
@@ -71,13 +75,13 @@ class SQSService:
         non_retryable_exceptions=(NoCredentialsError,)
     )
     def send_lead_message(
-        self, 
-        lead_data: LeadData, 
+        self,
+        lead_data: LeadData,
         queue_url: Optional[str] = None,
         message_group_id: Optional[str] = None
     ) -> str:
         """
-        Send lead data to SQS queue.
+        Send lead data to SQS queue or log in dry-run mode.
         
         Args:
             lead_data: Lead data to send
@@ -85,7 +89,7 @@ class SQSService:
             message_group_id: Message group ID for FIFO queues
             
         Returns:
-            Message ID
+            Message ID (or "dry-run-message-id" in dry-run mode)
             
         Raises:
             AWSServiceError: If operation fails
@@ -98,6 +102,29 @@ class SQSService:
             # Convert lead data to message payload
             message_body = self._prepare_message_body(lead_data)
             
+            # DRY-RUN MODE: Just log the message instead of sending
+            if self.parsing_config.dry_run_mode:
+                duration_ms = int((time.time() - start_time) * 1000)
+                dry_run_message_id = f"dry-run-{uuid.uuid4().hex[:8]}"
+                
+                self.logger.info(
+                    "DRY-RUN: Would send lead message to SQS",
+                    queue_url=queue_url,
+                    message_id=dry_run_message_id,
+                    lead_source=lead_data.lead_source,
+                    reference=lead_data.resale_reference,
+                    duration_ms=duration_ms,
+                    message_body=message_body,
+                    dry_run=True
+                )
+                
+                # Record success metrics (for testing purposes)
+                if self.metrics:
+                    self.metrics.record_sqs_message_sent(success=True)
+                
+                return dry_run_message_id
+            
+            # NORMAL MODE: Send to SQS
             # Prepare message parameters
             message_params = {
                 'QueueUrl': queue_url,

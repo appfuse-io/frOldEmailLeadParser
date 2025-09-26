@@ -51,6 +51,7 @@ class ParsingConfig(BaseModel):
     timeout_seconds: int = Field(default=30)
     retry_attempts: int = Field(default=3)
     enable_fallback_parsing: bool = Field(default=True)
+    dry_run_mode: bool = Field(default=False)  # When True, logs instead of sending to SQS
     
     @validator('max_email_size_mb')
     def validate_max_size(cls, v):
@@ -112,7 +113,8 @@ def load_config() -> AppConfig:
             max_email_size_mb=int(os.getenv('MAX_EMAIL_SIZE_MB', '10')),
             timeout_seconds=int(os.getenv('PARSING_TIMEOUT_SECONDS', '30')),
             retry_attempts=int(os.getenv('PARSING_RETRY_ATTEMPTS', '3')),
-            enable_fallback_parsing=os.getenv('ENABLE_FALLBACK_PARSING', 'true').lower() == 'true'
+            enable_fallback_parsing=os.getenv('ENABLE_FALLBACK_PARSING', 'true').lower() == 'true',
+            dry_run_mode=os.getenv('DRY_RUN_MODE', 'false').lower() == 'true'
         )
         
         # Monitoring Configuration
